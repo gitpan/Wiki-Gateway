@@ -1,17 +1,17 @@
-$VERSION = 0.00141;
+$VERSION = 0.00142;
 
 ###########################################################################
 # Wiki::Gateway.pm:
-#    Exposes a Wiki XML-RPC API for wikis which don't support it themselves
+#    library for interacting with remote wikis
 #
 #  maintained by Bayle Shanks
 #
-# Copyright 2003 Bayle Shanks and L. M. Orchard. 
+# Copyright 2003 Bayle Shanks 
 #
-# Based on usemod_xmlrpc.cgi by l.m.orchard <deus_x@pobox.com> 
+# With some code from usemod_xmlrpc.cgi by l.m.orchard <deus_x@pobox.com> 
 # http://www.decafbad.com
 #
-# also using some code by David Jacoby
+# and from David Jacoby
 #
 #
 # This program is free software; you can redistribute it and/or
@@ -29,6 +29,68 @@ $VERSION = 0.00141;
 # License, at your option. 
 #
 ###########################################################################
+
+
+=head1 NAME
+  
+Wiki::Gateway - library for interacting with remote wikis
+  
+=head1 SYNOPSIS
+  
+use Wiki::Gateway;
+
+$result = Wiki::Gateway::getPage('http://interwiki.sourceforge.net/cgi-bin/wiki.pl', $wiki_type, 'SandBox');
+
+
+$result = Wiki::Gateway::putPage('http://interwiki.sourceforge.net/cgi-bin/wiki.pl', $wiki_type, 'SandBox', $page_source_text);
+
+
+$timestamp = Wiki::Gateway::daysAgoToDate(1);
+$result = Wiki::Gateway::getRecentChanges('http://interwiki.sourceforge.net/cgi-bin/wiki.pl',$wiki_type, $timestamp);
+
+
+$result = Wiki::Gateway::getAllPages('http://interwiki.sourceforge.net/cgi-bin/wiki.pl',$wiki_type);
+
+  
+=head1 DESCRIPTION
+  
+Wiki::Gateway allows you to interact with remote wikis. It presents a unified API for interfacing with a variety of different wiki engines. It allows you to read, to write, to get RecentChanges, and to get a list of all pages on the target wiki.
+
+Right now, WikiGateway supports (i.e. knows how to talk to) the following wiki engines:
+
+ * MoinMoin ($wiki_type = "moinmoin1")
+ * UseMod   ($wiki_type = "usemod1")
+ * OddMuse  ($wiki_type = "usemod1")
+
+
+=head1 LICENSE & COPYRIGHT
+
+Wiki::Gateway is free software; you may redistribute it and/or modify it under the same terms as Perl itself.
+
+Wiki::Gateway is copyright (c) 2004 Bayle Shanks. 
+
+
+=head1 CREDITS
+  
+ Bayle Shanks
+ L. M. Orchard
+ David Jacoby
+
+ (see CREDITS.txt for more detail)
+
+To get help, email the WikiGateway users' mailing list: interwiki-wgateway-usr@lists.sourceforge.net.
+
+
+=head1 SEE ALSO
+
+Wiki::Gateway is part of a suite of related programs, including a command-line client, Python bindings, an Atom proxy server which can act as a proxy for a wiki, and an XML-RPC proxy server. See L<http://interwiki.sourceforge.net/cgi-bin/wiki.pl?WikiGateway> for more information.
+
+  
+
+  
+=cut
+
+
 
 # API notes:
 #  Each of these functions requires two more arguments than in the API.

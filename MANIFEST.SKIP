@@ -8,3 +8,6 @@
 .*\.tar\.gz$
 (^|\/)CVS/
 ^Wiki-Gateway-
+.*~$
+^MANIFEST.bak$
+^Makefile.old$

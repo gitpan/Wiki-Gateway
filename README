@@ -24,9 +24,9 @@ $result = Wiki::Gateway::getAllPages('http://interwiki.sourceforge.net/cgi-bin/w
 
 Right now, WikiGateway supports (i.e. knows how to talk to) the following wiki engines:
 
-* MoinMoin
-* UseMod
-* OddMuse
+* MoinMoin ($wiki_type = "moinmoin1")
+* UseMod   ($wiki_type = "usemod1")
+* OddMuse  ($wiki_type = "usemod1")
 
 Wiki::Gateway is part of a suite of related programs, including a command-line client, Python bindings, an Atom proxy server which can act as a proxy for a wiki, and an XML-RPC proxy server. See http://interwiki.sourceforge.net/cgi-bin/wiki.pl?WikiGateway for more information.
 
