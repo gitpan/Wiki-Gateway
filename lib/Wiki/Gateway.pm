@@ -1,4 +1,4 @@
-$VERSION = 0.00142;
+$VERSION = 0.00143;
 
 ###########################################################################
 # Wiki::Gateway.pm:
@@ -60,7 +60,7 @@ Right now, WikiGateway supports (i.e. knows how to talk to) the following wiki e
 
  * MoinMoin ($wiki_type = "moinmoin1")
  * UseMod   ($wiki_type = "usemod1")
- * OddMuse  ($wiki_type = "usemod1")
+ * OddMuse  ($wiki_type = "oddmuse1")
 
 
 =head1 LICENSE & COPYRIGHT
@@ -233,6 +233,14 @@ sub daysAgoToDate {
     $date = Date_ConvTZ($date,"",'+0000');     # convert to UTC timezone
     return UnixDate($date, '%Q') . 'T' . UnixDate($date, '%H:%M:%S');
         # format result like 20031112T08:04:15
+}
+
+sub dateToStandardizedFormat {
+    my ($date) = @_;
+
+    $date = ParseDateString($date); # convert into Date::Manip format
+    $date = Date_ConvTZ($date,"",'+0000');     # convert to UTC timezone
+    return UnixDate($date, '%Q') . 'T' . UnixDate($date, '%H:%M:%S');
 }
 
 ###########################################################################
@@ -522,7 +530,7 @@ sub getRecentChanges {
 
 # note that I left out the "last SWITCH;"s here
       SWITCH: {
-	  if ($type eq "usemod1")          {
+	  if (($type eq "usemod1") || ($type eq "oddmuse1"))          {
 	      my $time = UnixDate(ParseDate($date), "%s");
 	      my $days = dateToDays($date);
 
@@ -579,7 +587,7 @@ sub getPage {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPage',$pagename)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 
 	  use LWP::Simple;
@@ -611,11 +619,11 @@ sub getPageVersion {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPageVersion',$pagename,$version)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 
 	  use LWP::Simple;
-	  my $pagetext = get $url."?action=browse&id=$pagename&revision=version&raw=1"; 
+	  my $pagetext = get $url."?action=browse&id=$pagename&revision=$version&raw=1"; 
 
 	  return base64IfXMLRPC($pagetext);
 
@@ -644,7 +652,7 @@ sub getPageHTML {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPageHTML',$pagename)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 
 	  use LWP::Simple;
@@ -675,7 +683,7 @@ sub getPageHTMLVersion {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPageHTMLVersion',$pagename,$version)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 	  use LWP::Simple;
 	  my $pagetext = get $url."?action=browse&id=$pagename&version=$version&embed=1"; 
@@ -731,6 +739,27 @@ sub getAllPages {
 
     return \@lines;
 }
+         if ($type eq "oddmuse1")
+         {
+	      #### FETCH PAGE FROM WIKI SERVER
+	      use LWP::Simple;
+	      my $index = get $url.'?action=index&raw=1';
+
+	      #### CUT OFF HEADER AND FOOTER
+	      #$index =~ /.*pages found:<\/h2>(.*)<hr .*/is;
+	      # maybe it would be less brittle to grep for the "FORM" ?
+	      #$index = $1;
+
+	      #### PROCESS THE REST
+	      #$index =~ s/.... <a href="/<a href="/gi;
+	      #$index =~ s/<a href="[^>]*>(.*)<\/a>/$1/gi;
+              #$index =~ s/\n//g;
+              my @lines = split /\n/,$index;
+
+              return \@lines;
+
+
+         }
 }
 }
 
@@ -760,10 +789,10 @@ sub getPageInfo {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPageInfo',$pagename)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 	  {
-
+	      return getPageLastVersionInfoUsemod($url,$type,$pagename);
 # here's what was in Orchard's code:
 #	my ($meta, $pagetext);
 #	my $pageinfo = {};
@@ -775,10 +804,57 @@ sub getPageInfo {
 #		   version      => $extra{revision}
 #		  };
 #	}
-	      return {};
+#
+# note that I have "date" instead of "lastModified"
+	      
 	  }
       }
   }
+}
+
+
+sub getPageLastVersionInfoUsemod {
+    my ($url, $type, $pagename) = @_;
+
+    my %versions = %{getPageVersionsInfoUsemod($url, $type, $pagename)};
+
+    my @sortedVersionIDs = sort(keys %versions);
+    my $lastVersion = pop(@sortedVersionIDs);
+    return $versions{$lastVersion};
+}
+
+
+
+sub getPageVersionsInfoUsemod {
+    my ($url, $type, $pagename) = @_;
+
+    #print "DEBUG: $url, $type, $pagename\n";
+    use LWP::Simple;
+    my $history = get $url."?action=history&id=$pagename&embed=1"; 
+    #print $history;
+
+    my $versionsRef = {};
+    while ($history =~ /<tr>.*<input type='radio' name='diffrevision' .*name='revision' value='(\d+)'.*<\/a> \. \. (.*) by (.*?)(?:<b>\[(.*)\]<\/b>)? <\/tr>/g)
+    {
+	my $version = {};
+	$version->{'version'} = $1;
+	$version->{'date'} = $2;
+	$version->{'author'} = $3;
+	$version->{'comment'} = $4;
+	
+	if ($version->{'author'} =~ /<a href=".*?" title="ID \d+ from (.*?)">(.*?)<\/a>/) {
+	    $version->{'author'} = $1;
+	    $version->{'name'} = $2;
+	}
+
+	$version->{'date'} = dateToStandardizedFormat($version->{'date'});
+
+	$versionsRef->{$version->{'version'}} = $version;
+
+	#print "$version{'version'}\n$version{'date'}\n$version{'author'}\n$version{'comment'}\n\n";
+    }
+
+    return $versionsRef;
 }
 
 ###########################################################################
@@ -786,8 +862,7 @@ sub getPageInfo {
 #      returns a struct just like plain getPageInfo(), but this time
 #      for a specific version.
 ###########################################################################
-##### NOT IMPLEMENTED YET
-###########################################################################
+
 
 sub getPageInfoVersion {
     my ($pkg, $url, $type, $pagename, $version);
@@ -804,11 +879,11 @@ sub getPageInfoVersion {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('getPageInfoVersion',$pagename,$version)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
+	  my %versions = %{getPageVersionsInfoUsemod($url, $type, $pagename)};
 
-#see getPageInfo for something close to what Orchard had here
-	return {};
+	  return $versions{$version};
     }
   }
 }
@@ -841,7 +916,7 @@ sub listLinks {
 					    -> proxy("${url}RecentChanges?action=xmlrpc")
 					    -> call('listLinks',$pagename)
 					    -> result;}
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 
 #see getPageInfo for something close to what Orchard had here
@@ -987,7 +1062,7 @@ sub putPage_moinmoin1 {
 	    return SOAP::Data->type(boolean => 1);
 	}
 	else {
-	    return 1;
+	    return 0;    # SUCCESS
 	}
 
     
@@ -1014,7 +1089,7 @@ sub putPage {
       if ($type eq "moinmoin1")        {
 	  return putPage_moinmoin1($url, $type, $pagename, $pagetext, $cookiejar);
       }
-      if (($type eq "usemod1") || ($type eq "usemod1NoModWiki")) 
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
       {
 
 ##################
@@ -1082,7 +1157,7 @@ sub putPage {
 	    return SOAP::Data->type(boolean => 1);
 	}
 	else {
-	    return 1;
+	    return 0;      # SUCCESS
 	}
 
     }
@@ -1368,6 +1443,101 @@ sub createNewUser_moinmoin1 {
     
 }
 
+
+
+
+
+###########################################################################
+# stuff we added in WikiGateway
+###########################################################################
+
+
+
+###########################################################################
+#  * base64 revertToVersion( String pagename, int version, [string cookiejar] ):
+#     Reverts the page to the given version
+###########################################################################
+
+sub revertToVersion {
+    my ($pkg, $url, $type, $pagename, $version, $cookiejar);
+    if ($XMLRPC) {
+	($pkg, $pagename, $version, $cookiejar) = @_;
+	($url, $type) = ($SERVER_URL, $SERVER_TYPE); 
+    }
+    else {
+	($url, $type, $pagename, $version, $cookiejar) = @_;
+    }
+
+  SWITCH: {
+
+      # default
+      my $oldtext = getPageVersion(@_);
+      # TODO; check if that version even exists!
+      
+      # UGLY! in order to call another procedure we need to decide if we're in
+      # XMLRPC or not! 
+      # I'm going to postpone fixing this until after the conversion to Python
+      
+      # p.s. we should also make cookiejar an object member
+
+      if ($XMLRPC) {
+	  return putPage($pkg, $pagename, $oldtext, $cookiejar);
+      }
+      else {
+	  return putPage($url, $type, $pagename, $oldtext, $cookiejar);
+      }
+  }
+}
+
+
+###########################################################################
+#  * struct getPageInfoVersions( string pagename ) :
+#      returns a list of structs like getPageInfo(), for all available
+#      versions (i.e. the contents of the typical "page history" page
+###########################################################################
+sub getPageInfoVersions {
+    my ($pkg, $url, $type, $pagename);
+    if ($XMLRPC) {
+	($pkg, $pagename) = @_;
+	($url, $type) = ($SERVER_URL, $SERVER_TYPE); 
+    }
+    else {
+	($url, $type, $pagename) = @_;
+    }
+
+  SWITCH: {
+      if ($type eq "moinmoin1")        {
+
+	  die "WikiGateway: getPageInfoVersions not implemented yet for MoinMoin";
+#return XMLRPC::Lite
+#					    -> proxy("${url}RecentChanges?action=xmlrpc")
+#					    -> call('getPageInfoVersion',$pagename,$version)
+#					    -> result;}
+      }
+
+      if ((($type eq "usemod1") || ($type eq "oddmuse1")) || ($type eq "usemod1NoModWiki")) 
+      {
+#	  	print "hi2 $url, $type, $pagename\n";
+
+		
+
+	  #my %versions = getPageVersionsInfoUsemod($url, $type, $pagename);
+	  #use Data::Dumper;
+	  #print Dumper(%versions);
+
+	  return getPageVersionsInfoUsemod($url, $type, $pagename);
+      }
+  }
+}
+
+
+
+###########################################################################
+###########################################################################
+###########################################################################
+# misc packaging stuff
+###########################################################################
+###########################################################################
 
 
 BEGIN {
