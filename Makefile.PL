@@ -12,15 +12,7 @@ include('ExtUtils::AutoInstall');
 
 build_requires  ('Test::Unit');
 
-requires('SOAP::Lite');
-requires('XMLRPC::Lite');
-requires('Date::Manip');
-requires('LWP::Simple');
-requires('XML::RSS');
-requires('HTML::Form');
-requires('LWP::UserAgent');
-requires('HTTP::Cookies');
-requires('SOAP::Lite');
+requires('Inline::Python');
 
 # features(
 #     'Client/Server for Atom API' => [

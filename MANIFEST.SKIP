@@ -11,3 +11,5 @@
 .*~$
 ^MANIFEST.bak$
 ^Makefile.old$
+uploadNewVersion.sh
+.cvsignore
