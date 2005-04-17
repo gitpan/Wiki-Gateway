@@ -1,5 +1,5 @@
 package Wiki::Gateway;
-$VERSION = 0.00199;
+$VERSION = 0.001991;
 
 
 =head1 NAME
@@ -69,6 +69,7 @@ To get help, email the WikiGateway users' mailing list: interwiki-wgateway-usr@l
 Wiki::Gateway is part of a suite of related programs, including a command-line client, a Python API, an Atom gateway server which can act as a proxy for a wiki, an XML-RPC gateway server, a WebDAV gateway server, and more. See L<http://interwiki.sourceforge.net/cgi-bin/wiki.pl?WikiGateway> for more information.
 
 
+=cut
 
 
 ###############################
